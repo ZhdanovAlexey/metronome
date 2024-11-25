@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Telegram Метроном</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <style>
+        body { 
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+        .status {
+            margin: 20px 0;
+            font-size: 1.2em;
+            color: #666;
+        }
+        .bpm-display {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0;
+        }
+        .timer-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #0088cc;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 5px;
+            background-color: #0088cc;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #006699;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        .telegram-link {
+            margin-top: 20px;
+            color: #0088cc;
+            text-decoration: none;
+        }
+        .input-group {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .input-group label {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .input-group input {
+            width: 80px;
+            padding: 8px;
+            font-size: 1.1em;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            display: none;
+            font-size: 0.9em;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #0088cc;
+            width: 0%;
+            transition: width 1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Telegram Метроном</h1>
+        <div class="status">Готов к работе</div>
+        <div class="bpm-display">0 BPM</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+        <div class="timer-display" id="timerDisplay">05:00</div>
+
+        <div class="input-group">
+            <label for="bpmInput">Темп (BPM)</label>
+            <input type="number" id="bpmInput" min="5" max="50" value="20">
+        </div>
+
+        <div class="input-group">
+            <label for="durationInput">Длительность (минуты)</label>
+            <input type="number" id="durationInput" min="1" max="10" value="5">
+        </div>
+
+        <div class="error" id="errorMsg">Проверьте введённые значения</div>
+
+        <div class="controls">
+            <button id="startBtn">Старт</button>
+            <button id="stopBtn" disabled>Стоп</button>
+        </div>
+
+        <a href="https://t.me/YOUR_BOT_USERNAME" class="telegram-link" target="_blank">
+            Открыть бота в Telegram
+        </a>
+    </div>
+
+    <script>
+        let audioContext = null;
+        let isPlaying = false;
+        let nextTickTime = 0;
+        let currentBpm = 0;
+        let timeoutId = null;
+        let startTime = null;
+        let duration = 300; // 5 минут по умолчанию
+        let timerInterval = null;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const bpmInput = document.getElementById('bpmInput');
+        const durationInput = document.getElementById('durationInput');
+        const errorMsg = document.getElementById('errorMsg');
+        const statusDiv = document.querySelector('.status');
+        const bpmDisplay = document.querySelector('.bpm-display');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const progressBar = document.getElementById('progressBar');
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            const currentTime = Date.now();
+            const elapsedSeconds = (currentTime - startTime) / 1000;
+            const remainingSeconds = Math.max(0, duration - elapsedSeconds);
+            
+            if (remainingSeconds === 0) {
+                stopMetronome();
+                createTickSound(true);
+                return;
+            }
+
+            timerDisplay.textContent = formatTime(remainingSeconds);
+            const progress = ((duration - remainingSeconds) / duration) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        function initAudio() {
+            if (audioContext === null) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function createTickSound(isFinal = false) {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            if (isFinal) {
+                osc.frequency.setValueAtTime(1200, audioContext.currentTime);
+                gain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+                osc.start(audioContext.currentTime);
+                osc.stop(audioContext.currentTime + 0.3);
+            } else {
+                osc.frequency.setValueAtTime(880, audioContext.currentTime);
+                gain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+                osc.start(audioContext.currentTime);
+                osc.stop(audioContext.currentTime + 0.05);
+            }
+        }
+
+        function scheduleTick() {
+            if (!isPlaying) return;
+            
+            const currentTime = audioContext.currentTime;
+            
+            if (nextTickTime <= currentTime) {
+                createTickSound();
+                nextTickTime = currentTime + (60 / currentBpm);
+            }
+            
+            timeoutId = requestAnimationFrame(scheduleTick);
+        }
+
+        function startMetronome(bpm) {
+            const durationMinutes = parseInt(durationInput.value);
+            
+            if (bpm < 5 || bpm > 50 || durationMinutes < 1 || durationMinutes > 10) {
+                errorMsg.textContent = "Темп: 5-50 BPM, Длительность: 1-10 минут";
+                errorMsg.style.display = 'block';
+                return;
+            }
+            
+            errorMsg.style.display = 'none';
+            initAudio();
+            currentBpm = bpm;
+            duration = durationMinutes * 60;
+            startTime = Date.now();
+            
+            if (!isPlaying) {
+                isPlaying = true;
+                nextTickTime = audioContext.currentTime;
+                scheduleTick();
+                
+                statusDiv.textContent = 'Играет';
+                bpmDisplay.textContent = `${bpm} BPM`;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                timerInterval = setInterval(updateTimer, 100);
+                updateTimer();
+            }
+        }
+
+        function stopMetronome() {
+            isPlaying = false;
+            if (timeoutId) {
+                cancelAnimationFrame(timeoutId);
+            }
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            statusDiv.textContent = 'Остановлен';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        startBtn.addEventListener('click', () => {
+            const bpm = parseInt(bpmInput.value);
+            startMetronome(bpm);
+        });
+
+        stopBtn.addEventListener('click', () => {
+            stopMetronome();
+        });
+
+        [bpmInput, durationInput].forEach(input => {
+            input.addEventListener('input', () => {
+                const bpm = parseInt(bpmInput.value);
+                const durationMinutes = parseInt(durationInput.value);
+                
+                if (bpm < 5 || bpm > 50 || durationMinutes < 1 || durationMinutes > 10) {
+                    errorMsg.style.display = 'block';
+                } else {
+                    errorMsg.style.display = 'none';
+                }
+            });
+        });
+
+        // Обработка параметров URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const bpmParam = urlParams.get('bpm');
+        const durationParam = urlParams.get('duration');
+        const autostart = urlParams.get('autostart');
+        
+        if (bpmParam) {
+            const bpm = parseInt(bpmParam);
+            if (bpm >= 5 && bpm <= 50) {
+                bpmInput.value = bpm;
+            }
+        }
+        
+        if (durationParam) {
+            const durationSeconds = parseInt(durationParam);
+            const durationMinutes = Math.floor(durationSeconds / 60);
+            if (durationMinutes >= 1 && durationMinutes <= 10) {
+                durationInput.value = durationMinutes;
+            }
+        }
+        
+        if (autostart === 'true') {
+            const bpm = parseInt(bpmInput.value);
+            const durationMinutes = parseInt(durationInput.value);
+            if (bpm >= 5 && bpm <= 50 && durationMinutes >= 1 && durationMinutes <= 10) {
+                startMetronome(bpm);
+            }
+        }
+    </script>
+</body>
+</html>
