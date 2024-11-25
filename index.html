@@ -226,8 +226,8 @@
         function startMetronome(bpm) {
             const durationMinutes = parseInt(durationInput.value);
             
-            if (bpm < 5 || bpm > 50 || durationMinutes < 1 || durationMinutes > 10) {
-                errorMsg.textContent = "Темп: 5-50 BPM, Длительность: 1-10 минут";
+            if (bpm < 5 || bpm > 100 || durationMinutes < 1 || durationMinutes > 100) {
+                errorMsg.textContent = "Темп: 5-100 BPM, Длительность: 1-100 минут";
                 errorMsg.style.display = 'block';
                 return;
             }
@@ -281,7 +281,7 @@
                 const bpm = parseInt(bpmInput.value);
                 const durationMinutes = parseInt(durationInput.value);
                 
-                if (bpm < 5 || bpm > 50 || durationMinutes < 1 || durationMinutes > 10) {
+                if (bpm < 5 || bpm > 100 || durationMinutes < 1 || durationMinutes > 100) {
                     errorMsg.style.display = 'block';
                 } else {
                     errorMsg.style.display = 'none';
@@ -297,7 +297,7 @@
         
         if (bpmParam) {
             const bpm = parseInt(bpmParam);
-            if (bpm >= 5 && bpm <= 50) {
+            if (bpm >= 5 && bpm <= 100) {
                 bpmInput.value = bpm;
             }
         }
@@ -313,7 +313,7 @@
         if (autostart === 'true') {
             const bpm = parseInt(bpmInput.value);
             const durationMinutes = parseInt(durationInput.value);
-            if (bpm >= 5 && bpm <= 50 && durationMinutes >= 1 && durationMinutes <= 10) {
+            if (bpm >= 5 && bpm <= 100 && durationMinutes >= 1 && durationMinutes <= 100) {
                 startMetronome(bpm);
             }
         }
