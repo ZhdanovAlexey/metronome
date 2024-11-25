@@ -2,7 +2,7 @@ import telebot
 from telebot import types
 
 # Замените на ваш токен
-TOKEN = '8128618821:AAEVXwdLHufalKA3IhaFHaZX20rnDezcoIA'
+TOKEN = 'XXXXX'
 # Замените на URL вашей страницы на GitHub Pages
 GITHUB_PAGES_URL = 'https://zhdanovalexey.github.io/metronome/'
 
